@@ -14,6 +14,8 @@ jobs:
           access_token: ${{ github.token }}
   build-web:
     uses: ./.github/workflows/build-web.yml
+  build-module:
+    uses: ./.github/workflows/build-module.yml
   download-musl-cc:
     uses: ./.github/workflows/download-musl-cc.yml
   build-musl:

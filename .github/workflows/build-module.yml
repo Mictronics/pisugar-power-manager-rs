@@ -1,0 +1,14 @@
+name: build-module
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout repo
+      uses: actions/checkout@master
+    - name: build pisugar-module
+      working-directory: ./pisugar-module
+      run: make
