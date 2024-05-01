@@ -57,7 +57,7 @@
     "axios": "^0.28.0",
     "element-ui": "^2.11.1",
     "eslint-plugin-vue": "^5.2.3",
-    "less": "^3.9.0",
+    "less": "^3.13.1",
     "less-loader": "^5.0.0",
     "moment": "^2.24.0",
     "vue": "^2.5.16",
