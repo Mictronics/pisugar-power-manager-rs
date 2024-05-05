@@ -18,17 +18,21 @@ pub use model::Model;
 pub use sd3078::*;
 
 use crate::battery::Battery;
+use crate::ina219::INA219;
 pub use crate::rtc::RTCRawTime;
 use crate::rtc::RTC;
+use crate::sensor::CurrentSensor;
 
 mod battery;
 mod config;
+mod ina219;
 mod ip5209;
 mod ip5312;
 mod model;
 mod pisugar3;
 mod rtc;
 mod sd3078;
+mod sensor;
 
 /// Time host
 pub const TIME_HOST: &str = "http://cdn.pisugar.com";
@@ -209,6 +213,15 @@ macro_rules! call_i2c {
     };
 }
 
+macro_rules! call_sensor {
+    ($sensor:expr, $method:tt) => {
+        call_i2c!($sensor, $method)
+    };
+    ($sensor:expr, $method:tt, $($arg:tt)*) => {
+        call_i2c!($sensor, $method, $($arg)*)
+    }
+}
+
 macro_rules! call_battery {
     ($battery:expr, $method:tt) => {
         call_i2c!($battery, $method)
@@ -235,6 +248,7 @@ pub struct PiSugarCore {
     battery: Option<Box<dyn Battery + Send>>,
     battery_full_at: Option<Instant>,
     rtc: Option<Box<dyn RTC + Send>>,
+    ina219: Option<Box<dyn CurrentSensor + Send>>,
     poll_check_at: Instant,
     rtc_sync_at: Instant,
 }
@@ -260,6 +274,15 @@ impl PiSugarCore {
         Ok(())
     }
 
+    pub fn init_ina219(&mut self) -> Result<()> {
+        if self.ina219.is_none() {
+            let mut s: Box<dyn CurrentSensor + Send> = Box::new(INA219::new(self.config.clone())?);
+            s.init(&self.config)?;
+            self.ina219 = Some(s);
+        }
+        Ok(())
+    }
+
     pub fn new(config: PiSugarConfig, model: Model) -> Result<Self> {
         let mut core = Self {
             config_path: None,
@@ -268,6 +291,7 @@ impl PiSugarCore {
             battery: None,
             battery_full_at: None,
             rtc: None,
+            ina219: None,
             poll_check_at: Instant::now(),
             rtc_sync_at: Instant::now(),
         };
@@ -276,6 +300,9 @@ impl PiSugarCore {
         }
         if let Err(e) = core.init_battery() {
             log::warn!("Retry to init battery later, error: {}", e);
+        }
+        if let Err(e) = core.init_ina219() {
+            log::warn!("Retry to init INA219 later, error: {}", e);
         }
         Ok(core)
     }
@@ -288,11 +315,13 @@ impl PiSugarCore {
             battery: None,
             battery_full_at: None,
             rtc: None,
+            ina219: None,
             poll_check_at: Instant::now(),
             rtc_sync_at: Instant::now(),
         };
         core.battery = Some(model.bind(config.clone())?);
         core.rtc = Some(model.rtc(config.clone())?);
+        core.ina219 = Some(Box::new(INA219::new(config.clone())?));
         Ok(core)
     }
 
@@ -432,6 +461,26 @@ impl PiSugarCore {
 
     pub fn toggle_output_enabled(&self, enable: bool) -> Result<()> {
         call_battery!(&self.battery, toggle_output_enabled, enable)
+    }
+
+    pub fn current_sensor_shunt_voltage(&self) -> Result<i16> {
+        call_sensor!(&self.ina219, shunt_voltage)
+    }
+
+    pub fn current_sensor_voltage(&self) -> Result<u16> {
+        call_sensor!(&self.ina219, voltage)
+    }
+
+    pub fn current_sensor_power(&self) -> Result<i16> {
+        call_sensor!(&self.ina219, power)
+    }
+
+    pub fn current_sensor_current(&self) -> Result<i16> {
+        call_sensor!(&self.ina219, current)
+    }
+
+    pub fn current_sensor_calibrate(&self, value: u16) -> Result<()> {
+        call_sensor!(&self.ina219, calibrate, value)
     }
 
     pub fn charging_range(&self) -> Result<Option<(f32, f32)>> {
