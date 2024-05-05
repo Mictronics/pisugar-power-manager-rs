@@ -7,6 +7,7 @@ use crate::{
 use crate::{PiSugarConfig, Result};
 
 /// SD3078, rtc chip
+#[allow(dead_code)]
 pub struct SD3078 {
     i2c: I2c,
     cfg: PiSugarConfig,
