@@ -7,8 +7,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: checkout repo
-      uses: actions/checkout@master
-    - name: build pisugar-module
-      working-directory: ./pisugar-module
-      run: make
+      - name: checkout repo
+        uses: actions/checkout@master
+      - name: build pisugar-module-2
+        working-directory: ./pisugar-module/pisugar-2
+        run: make
+      - name: build pisugar-module-3
+        working-directory: ./pisugar-module/pisugar-3
+        run: make
