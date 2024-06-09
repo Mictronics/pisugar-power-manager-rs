@@ -51,5 +51,5 @@ jobs:
             scripts/*.sh
             scripts/aur/*.tar.gz
             !scripts/update-version.sh
-          # pisugar-module.tar.gz
+            pisugar-module.tar.gz
           if-no-files-found: warn
