@@ -50,6 +50,14 @@ jobs:
         with:
           name: pisugar-all
 
+      - name: Create archives
+        run: |
+          mkdir -p archives
+          cp -R target/* archives/
+          cp scripts/*.sh archives/
+          cp scripts/aur/*.tar.gz archives/
+          tar -czf archives.tar.gz archives
+
       # Development Release
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
@@ -59,6 +67,7 @@ jobs:
           prerelease: true
           draft: false
           files: |
+            archives.tar.gz
             target/**/*.deb
             target/**/*.rpm
             scripts/*.sh
