@@ -22,7 +22,7 @@ const { VueLoaderPlugin } = require('vue-loader');
 let whiteListedModules = ['vue', 'element-ui'];
 
 let rendererConfig = {
-  devtool: '#eval-cheap-module-source-map',
+  devtool: 'eval-cheap-module-source-map',
   entry: {
     renderer: path.join(__dirname, '../src/renderer/main.js')
   },
