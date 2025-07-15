@@ -9,13 +9,13 @@ jobs:
     steps:
       # Checkout
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       # Nodejs
       - name: Setup Nodejs
         uses: actions/setup-node@v1
         with:
-          node-version: "12.x"
+          node-version: '12.x'
 
       - name: NPM or Yarn install with caching
         uses: bahmutov/npm-install@v1.6.0
@@ -28,7 +28,7 @@ jobs:
 
       # Upload artifact
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pisugar-web
           path: |
