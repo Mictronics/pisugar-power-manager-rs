@@ -81,35 +81,3 @@ jobs:
             downloads/**/*.deb
             downloads/**/*.rpm
             scripts.tar.gz
-
-      # Upload QiNiu nightly
-      - name: 'Upload to QiNiu'
-        if: github.event_name == 'push' && (github.ref_name == 'master' || startsWith(github.ref_name, 'v'))
-        env:
-          QINIU_BUCKET: ${{ secrets.QINIU_BUCKET }}
-          QINIU_AK: ${{ secrets.QINIU_AK }}
-          QINIU_SK: ${{ secrets.QINIU_SK }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
-
-          if [ $(uname -m) == 'x86_64' ]; then
-            wget https://github.com/qiniu/qshell/releases/download/v2.16.1/qshell-v2.16.1-linux-amd64.tar.gz
-            tar -xvf qshell-v2.16.1-linux-amd64.tar.gz
-          else
-            wget https://github.com/qiniu/qshell/releases/download/v2.16.1/qshell-v2.16.1-linux-386.tar.gz
-            tar -xvf qshell-v2.16.1-linux-386.tar.gz
-          fi
-          chmod +x qshell
-          ./qshell account -w ${QINIU_AK} ${QINIU_SK} deploy-account
-
-          for f in $(find downloads -type f '*.tar.gz') $(find downloads -type f '*.deb') $(find downloads -type f '*.rpm') $(find scripts -name '*.tar.gz'); do
-            filename=${f##*/}
-            key=nightly/${filename}
-            ./qshell rput --overwrite ${QINIU_BUCKET} ${key} ${f} &
-          done
-
-          ./qshell rput --overwrite --mimetype text/plain ${QINIU_BUCKET} nightly/scripts.tar.gz scripts.tar.gz &
-
-          wait
-          echo "All uploaded to qiniu"
