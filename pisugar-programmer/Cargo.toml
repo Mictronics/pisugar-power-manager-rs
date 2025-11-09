@@ -1,6 +1,6 @@
 [package]
 name = "pisugar-programmer"
-version = "2.0.0"
+version = "2.1.1"
 authors = ["PiSugar"]
 edition = "2018"
 description = "PiSugar Firmware Programmer (for PiSugar 3)"
@@ -37,3 +37,8 @@ buildflags = ["--release"]
 
 [package.metadata.rpm.targets]
 pisugar-programmer = { path = "/usr/bin/pisugar-programmer" }
+
+[package.metadata.generate-rpm]
+assets = [
+  { source = "target/release/pisugar-programmer", dest = "/usr/bin/pisugar-programmer", mode = "755" },
+]

@@ -1,0 +1,61 @@
+# Building with cross-rs, please refer to https://github.com/cross-rs/cross?tab=readme-ov-file#supported-targets
+
+name: build-with-cross
+
+on:
+  workflow_call:
+
+jobs:
+  build-cross:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        target:
+          - arm-unknown-linux-musleabihf
+          - armv7-unknown-linux-musleabihf
+          - aarch64-unknown-linux-musl
+          # - riscv64gc-unknown-linux-musl
+          - i586-unknown-linux-musl
+          - x86_64-unknown-linux-musl
+    steps:
+      # Checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fix cargo config
+        run: sed -e "s/.*replace-with.*//g" -i .cargo/config.toml
+
+      # Download web
+      - name: Download web
+        uses: actions/download-artifact@v4
+        with:
+          name: pisugar-web
+          path: |
+            pisugar-webui/dist
+
+      # Setup rust toolchain
+      - name: Setup rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # Install cross and cargo-deb / cargo rpm
+      - name: Install cross and cargo-deb
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          cargo install cargo-deb
+          cargo install cargo-generate-rpm
+
+      # Cross build
+      - name: Cross build and make bin package
+        run: |
+          bash -x cross-build.sh -t ${{ matrix.target }}
+
+      # Upload artifact
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: |
+            pisugar_${{ matrix.target }}.tar.gz
+            target/${{ matrix.target }}/debian/*.deb
+            target/${{ matrix.target }}/generate-rpm/*.rpm
