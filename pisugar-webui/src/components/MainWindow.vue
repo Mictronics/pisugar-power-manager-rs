@@ -125,7 +125,7 @@
           <el-form
             ref="buttonFuncFormSingle"
             :model="buttonFuncForm.single"
-            label-width="90px"
+            label-width="125px"
           >
             <el-form-item :label="$t('singleTapLabel')">
               <el-select
@@ -160,7 +160,7 @@
           <el-form
             ref="buttonFuncFormDouble"
             :model="buttonFuncForm.double"
-            label-width="90px"
+            label-width="125px"
           >
             <el-form-item :label="$t('doubleTapLabel')">
               <el-select
@@ -195,7 +195,7 @@
           <el-form
             ref="buttonFuncFormLong"
             :model="buttonFuncForm.long"
-            label-width="90px"
+            label-width="125px"
           >
             <el-form-item :label="$t('longTapLabel')">
               <el-select
@@ -555,6 +555,49 @@
           }}</el-button>
         </div>
       </el-dialog>
+
+      <!-- login dialog -->
+      <el-dialog
+        :title="$t('loginDialog')"
+        :visible.sync="loginDialog"
+        :close-on-press-escape="false"
+        :close-on-click-modal="false"
+        :show-close="false"
+      >
+        <el-row>
+          <el-form
+            :model="loginForm"
+            ref="loginForm"
+          >
+            <el-form-item
+              :label="$t('username')"
+              label-width="150px"
+              prop="username"
+            >
+              <el-input
+                v-model="loginForm.username"
+                :placeholder="$t('username')"
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              :label="$t('password')"
+              label-width="150px"
+              prop="password"
+            >
+              <el-input
+                v-model="loginForm.password"
+                type="password"
+                :placeholder="$t('password')"
+              ></el-input>
+            </el-form-item>
+          </el-form>
+        </el-row>
+        <div slot="footer" class="dialog-footer">
+          <el-button type="primary" @click="submitLogin">{{
+            $t('login')
+          }}</el-button>
+        </div>
+      </el-dialog>
     </div>
   </div>
 </template>
@@ -564,6 +607,15 @@ import Moment from 'moment'
 import { localeOptions } from '../locale'
 import { ms2ppm } from '../utils'
 import { onSocketMessage, initCommands, cycleCommands } from './socket'
+
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+let webSocketHost = `${wsProtocol}//${window.location.hostname}:${window.location.port}/ws`
+let loginApi = `${window.location.protocol}//${window.location.hostname}:${window.location.port}/login`
+// const devIp = '192.168.100.176'
+// const devWsHost = `ws://${devIp}:8421/ws`
+// const devLoginApi = `http://${devIp}:8421/login`
+// webSocketHost = devWsHost
+// loginApi = devLoginApi
 
 export default {
   name: 'index-page',
@@ -685,6 +737,12 @@ export default {
         password: '',
         passwordConfirm: ''
       },
+      loginDialog: false,
+      loginForm: {
+        username: localStorage.getItem('username') || '',
+        password: localStorage.getItem('password') || ''
+      },
+      loginToken: '',
       passwordRules: {
         username: [
           {
@@ -737,12 +795,18 @@ export default {
   },
 
   mounted () {
-    this.createWebSocketClient()
     setTimeout(() => {
       this.timeUpdater()
     }, 1000)
     this.locale = this.$i18n.locale
     console.log(this.$i18n.locale)
+    this.checkAuth()
+      .then((auth) => {
+        console.log('Auth result:', auth)
+        if (auth) {
+          this.createWebSocketClient()
+        }
+      })
   },
 
   computed: {
@@ -899,6 +963,62 @@ export default {
   },
 
   methods: {
+    async checkAuth () {
+      const username = localStorage.getItem('username') || ''
+      const password = localStorage.getItem('password') || ''
+      // POST /login
+      const response = await fetch(`${loginApi}?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`, {
+        method: 'POST',
+        headers: {
+          // cross-origin
+          'Access-Control-Allow-Origin': '*'
+        }
+      }).catch((error) => {
+        console.error('Error during authentication:', error)
+        this.$message({
+          message: `[Authentication] ${error.message}`,
+          type: 'error'
+        })
+        return false
+      }).then((res) => {
+        // jwt string in res
+        console.log('Authentication response:', res)
+        if (res.status === 401) {
+          this.loginDialog = true
+          return false
+        }
+        if (res.status !== 200) {
+          if (res.status) {
+            this.$message({
+              message: `[Authentication] Response code ${res.status}`,
+              type: 'error'
+            })
+          }
+          return false
+        }
+        res.text().then((bodyText) => {
+          console.log('Authentication response body:', bodyText)
+          localStorage.setItem('token', bodyText)
+          this.loginToken = bodyText
+        })
+        return true
+      })
+      return response
+    },
+    submitLogin () {
+      const { username, password } = this.loginForm
+      this.loginDialog = false
+      localStorage.setItem('username', username)
+      localStorage.setItem('password', password)
+      this.checkAuth().then((auth) => {
+        console.log('Auth result:', auth)
+        if (auth) {
+          setTimeout(() => {
+            this.createWebSocketClient()
+          }, 800)
+        }
+      })
+    },
     getBit (n, pos) {
       return (n & (1 << pos)) > 0
     },
@@ -910,9 +1030,16 @@ export default {
       }
     },
     createWebSocketClient () {
+      const token = this.loginToken || localStorage.getItem('token') || ''
+      const url = `${webSocketHost}?token=${encodeURIComponent(token)}`
+      console.log(`[Websocket CLIENT] connecting to ${url}`)
+      this.$connect(url)
       this.$socket.onopen = () => {
         console.log(`[Websocket CLIENT] open()`)
         this.getBatteryInfo(true)
+      }
+      this.$socket.onerror = (error) => {
+        console.error(`[Websocket CLIENT] error()`, error)
       }
     },
     sendSocketCommands (cmds) {
@@ -994,7 +1121,7 @@ export default {
       }
       // get alarm time in every 10s
       if (this.timeUpdaterCount % 10 === 0) {
-        this.$socket.send('get rtc_alarm_time')
+        this.$socket && this.$socket.send('get rtc_alarm_time')
       }
     },
     timeEditChange () {
@@ -1502,7 +1629,7 @@ body {
     margin-left: 10px;
     .label {
       display: inline-block;
-      width: 67px;
+      width: 90px;
     }
   }
 }
@@ -1511,7 +1638,7 @@ body {
     margin-left: 15px;
     .label {
       display: inline-block;
-      width: 67px;
+      width: 110px;
     }
   }
 }
